@@ -1,4 +1,4 @@
-FROM ppc64le/php:7.1-fpm
+FROM ppc64le/php:5.6-fpm
 
 MAINTAINER Jacob Zak <jagu.sayan@gmail.com>
 
@@ -12,6 +12,7 @@ RUN apt-get update \
      nginx-light \
      curl \
      vim \
+     patch \
      libldb-dev \
      libldap2-dev \
  && ln -s $(find / -name "libldap.so") /usr/lib/libldap.so \
@@ -26,15 +27,17 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/* \
  && rm -rf /tmp/*
 
+# Fix bugs, see https://bugs.launchpad.net/ubuntu/+source/phpldapadmin/+bug/1241425
+# sed -i -e 's/password_hash/password_ldap_hash/g' /var/www/lib/*.php /var/www/config/*
+COPY bugreport.cgi /
+RUN cd /usr/share/phpldapadmin && patch -p1 -i /bugreport.cgi
+
 RUN ln -sf /dev/stdout /var/log/nginx/access.log \
  && ln -sf /dev/stderr /var/log/nginx/error.log \
  && rm -rf /var/www \
  && ln -sf /usr/share/phpldapadmin /var/www \
  && rm /usr/local/etc/php-fpm.d/zz-docker.conf \
  && mv /var/www/config/config.php.example /var/www/config/config.php
-
-# See https://bugs.launchpad.net/ubuntu/+source/phpldapadmin/+bug/1241425
-RUN sed -i -e 's/password_hash/password_ldap_hash/g' /var/www/lib/*.php /var/www/config/*.php
 
 COPY conf/nginx.conf /etc/nginx
 COPY conf/default.conf /etc/nginx/conf.d/
